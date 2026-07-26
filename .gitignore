@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+apps/api/.venv/
+apps/web/.next/
+apps/web/out/
+
+# Env / secrets
+.env
+.env.local
+apps/web/.env.local
+apps/api/.env
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Alembic / uploads
+apps/api/skillz.db
+apps/api/uploads/
