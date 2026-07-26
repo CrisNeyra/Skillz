@@ -29,3 +29,5 @@ Thumbs.db
 # Alembic / uploads
 apps/api/skillz.db
 apps/api/uploads/
+
+.vercel/
