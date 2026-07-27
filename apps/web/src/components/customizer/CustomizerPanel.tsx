@@ -25,6 +25,12 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
   const [draft, setDraft] = useState<Customization>(initial.customization);
   const [bio, setBio] = useState(initial.profile.bio ?? "");
   const [headline, setHeadline] = useState(initial.profile.headline ?? "");
+  const [location, setLocation] = useState(initial.profile.location ?? "");
+  const [contacts, setContacts] = useState({
+    linkedin_url: initial.profile.linkedin_url ?? "",
+    github_url: initial.profile.github_url ?? "",
+    contact_email: initial.profile.contact_email ?? "",
+  });
   const [skillName, setSkillName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +51,14 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
       await apiClient("/profiles/me", {
         method: "PATCH",
         token,
-        body: JSON.stringify({ bio, headline }),
+        body: JSON.stringify({
+          bio,
+          headline,
+          location: location || null,
+          linkedin_url: contacts.linkedin_url || null,
+          github_url: contacts.github_url || null,
+          contact_email: contacts.contact_email || null,
+        }),
       });
       setMessage("Guardado");
       router.refresh();
@@ -141,21 +154,63 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
         </div>
 
         <div className="space-y-2">
-          <Label>Headline</Label>
+          <Label>Especialidad (headline)</Label>
           <Input
             value={headline}
             onChange={(e) => setHeadline(e.target.value)}
+            placeholder="Ej: Frontend Developer"
             className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
           />
         </div>
 
         <div className="space-y-2">
-          <Label>Bio</Label>
+          <Label>Ubicación / edad (barra de info)</Label>
+          <Input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Ej: Buenos Aires · 24"
+            className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Bio (Sobre mí)</Label>
           <Input
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
           />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label>LinkedIn</Label>
+            <Input
+              value={contacts.linkedin_url}
+              onChange={(e) => setContacts((c) => ({ ...c, linkedin_url: e.target.value }))}
+              placeholder="https://linkedin.com/in/..."
+              className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={contacts.contact_email}
+              onChange={(e) => setContacts((c) => ({ ...c, contact_email: e.target.value }))}
+              placeholder="hola@email.com"
+              className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>GitHub</Label>
+            <Input
+              value={contacts.github_url}
+              onChange={(e) => setContacts((c) => ({ ...c, github_url: e.target.value }))}
+              placeholder="https://github.com/..."
+              className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
+            />
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

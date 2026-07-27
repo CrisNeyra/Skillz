@@ -7,13 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.core.rate_limit import limit_auth
-from app.core.security import (
-    create_access_token,
-    create_refresh_token,
-    hash_password,
-    safe_decode,
-    verify_password,
-)
+from app.core.security import hash_password, verify_password
 from app.models import CustomizationSettings, Profile, User
 from app.schemas import (
     EnterRequest,
@@ -23,19 +17,13 @@ from app.schemas import (
     TokenResponse,
     UserOut,
 )
+from app.services.auth_service import issue_tokens, rotate_refresh_token
 from app.services.profile_service import slugify
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 DEFAULT_BG = "#ffffff"
 DEFAULT_FONT = "Space Grotesk"
-
-
-def _issue_tokens(user: User) -> TokenResponse:
-    return TokenResponse(
-        access_token=create_access_token(str(user.id)),
-        refresh_token=create_refresh_token(str(user.id)),
-    )
 
 
 def _unique_username(db: Session, display_name: str) -> str:
@@ -46,13 +34,13 @@ def _unique_username(db: Session, display_name: str) -> str:
     return candidate
 
 
-@router.post("/enter", response_model=TokenResponse)
+@router.post("/enter", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def enter_by_name(
     payload: EnterRequest,
     request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    """Entrada MVP: solo nombre visible. Reabre perfil si el nombre ya existe."""
+    """Crea un perfil nuevo solo con nombre. Nunca reabre cuentas existentes."""
     limit_auth(request)
     name = " ".join(payload.display_name.split())
     if not name:
@@ -64,10 +52,10 @@ def enter_by_name(
         .first()
     )
     if existing:
-        user = db.get(User, existing.user_id)
-        if not user or not user.is_active:
-            raise HTTPException(status_code=401, detail="Usuario no disponible")
-        return _issue_tokens(user)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ese nombre ya existe. Registrate o iniciá sesión con email y contraseña.",
+        )
 
     username = _unique_username(db, name)
     user = User(
@@ -90,7 +78,7 @@ def enter_by_name(
     )
     db.commit()
     db.refresh(user)
-    return _issue_tokens(user)
+    return issue_tokens(db, user)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -126,7 +114,7 @@ def register(
     )
     db.commit()
     db.refresh(user)
-    return _issue_tokens(user)
+    return issue_tokens(db, user)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -139,18 +127,17 @@ def login(
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
-    return _issue_tokens(user)
+    return issue_tokens(db, user)
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    data = safe_decode(payload.refresh_token)
-    if not data or data.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Refresh token inválido")
-    user = db.get(User, int(data["sub"]))
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado")
-    return _issue_tokens(user)
+def refresh(
+    payload: RefreshRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    limit_auth(request)
+    return rotate_refresh_token(db, payload.refresh_token)
 
 
 @router.get("/me", response_model=UserOut)

@@ -53,16 +53,33 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
     style: { color: "var(--profile-faint)" } as const,
   };
 
+  const extraLinks = data.links.filter((l) => {
+    const label = l.label.toLowerCase();
+    const url = l.url.toLowerCase();
+    const isX =
+      label === "x" ||
+      label.includes("twitter") ||
+      url.includes("twitter.com") ||
+      url.includes("x.com/");
+    return !isX;
+  });
+
   return (
     <div className="space-y-8 border-t pt-8" style={{ borderColor: "var(--profile-border)" }}>
-      {data.profile.bio ? (
-        <section>
-          <h2 {...sectionTitle}>Sobre mí</h2>
+      <section>
+        <h2 {...sectionTitle}>Sobre mí</h2>
+        {data.profile.bio ? (
           <p className="max-w-3xl text-base leading-relaxed" style={{ color: "var(--profile-muted)" }}>
             {data.profile.bio}
           </p>
-        </section>
-      ) : null}
+        ) : (
+          <p className="text-sm" style={{ color: "var(--profile-faint)" }}>
+            {data.is_owner
+              ? "Contá tu historia desde Personalizar."
+              : "Sin bio todavía."}
+          </p>
+        )}
+      </section>
 
       <section>
         <h2 {...sectionTitle}>Skills</h2>
@@ -94,60 +111,11 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
         </div>
       </section>
 
-      <section>
-        <h2 {...sectionTitle}>Experiencia</h2>
-        <ul className="space-y-4">
-          {data.experiences.length === 0 ? (
-            <li className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin experiencia cargada.
-            </li>
-          ) : (
-            data.experiences.map((exp) => (
-              <li key={exp.id}>
-                <p className="font-medium">{exp.role}</p>
-                <p className="text-sm" style={{ color: "var(--profile-muted)" }}>
-                  {exp.company}
-                </p>
-                {exp.description ? (
-                  <p className="mt-1 text-sm" style={{ color: "var(--profile-muted)" }}>
-                    {exp.description}
-                  </p>
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
-
-      <section>
-        <h2 {...sectionTitle}>Diplomas</h2>
-        <ul className="space-y-3">
-          {data.diplomas.length === 0 ? (
-            <li className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin diplomas.
-            </li>
-          ) : (
-            data.diplomas.map((d) => (
-              <li key={d.id} className="text-sm">
-                <span className="font-medium">{d.title}</span>
-                {d.issuer ? (
-                  <span style={{ color: "var(--profile-muted)" }}> — {d.issuer}</span>
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
-
-      <section>
-        <h2 {...sectionTitle}>Links</h2>
-        <div className="flex flex-wrap gap-3">
-          {data.links.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin links externos.
-            </p>
-          ) : (
-            data.links.map((l) => (
+      {extraLinks.length > 0 ? (
+        <section>
+          <h2 {...sectionTitle}>Links</h2>
+          <div className="flex flex-wrap gap-3">
+            {extraLinks.map((l) => (
               <a
                 key={l.id}
                 href={l.url}
@@ -158,10 +126,10 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
               >
                 {l.label}
               </a>
-            ))
-          )}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <Separator style={{ background: "var(--profile-border)" }} />
 

@@ -5,14 +5,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import safe_decode
-from app.db.session import SessionLocal
+from app.db import session as session_module
 from app.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
+    db = session_module.SessionLocal()
     try:
         yield db
     finally:

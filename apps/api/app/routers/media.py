@@ -10,6 +10,7 @@ from app.core.deps import get_current_user, get_db
 from app.models import MediaPost, User
 from app.schemas import LayoutUpdate, MediaConfirm, MediaOut
 from app.services.cloudinary_service import create_upload_signature
+from app.services.media_validation import validate_media_confirm
 from app.services.profile_service import (
     VALID_SLOTS,
     ensure_customization,
@@ -194,6 +195,7 @@ def confirm_media(
 ) -> MediaOut:
     if payload.slot not in VALID_SLOTS:
         raise HTTPException(status_code=400, detail="Slot inválido")
+    validate_media_confirm(user, payload)
     profile = get_profile_by_username(db, user.username)
     if not profile:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")

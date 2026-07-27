@@ -74,16 +74,17 @@ export function SideGallery({
   items: (MediaOut | null)[];
 }) {
   const slots = [0, 1, 2].map((i) => items[i] ?? null);
+  const emptyLabel = side === "right" ? "Imágenes" : "Galería";
   return (
-    <div className="flex flex-row gap-2 md:flex-col md:gap-3">
+    <div className="flex flex-row gap-2 lg:flex-col lg:gap-3">
       {slots.map((media, i) => (
         <motion.div
           key={`${side}-${i}`}
           whileHover={{ scale: 1.03 }}
           transition={{ type: "spring", stiffness: 320, damping: 22 }}
-          className="min-w-[30%] flex-1 md:min-w-0"
+          className="min-w-[30%] flex-1 lg:min-w-0"
         >
-          <MediaThumb media={media} label={`${side} ${i + 1}`} />
+          <MediaThumb media={media} label={emptyLabel} />
         </motion.div>
       ))}
     </div>

@@ -37,7 +37,8 @@ export default function EnterPage() {
         ¿Cómo te llamás?
       </h1>
       <p className="mb-6 text-sm text-[#1a1025]/60">
-        Sin contraseña ni usuario. Con tu nombre abrís o creás tu perfil Skillz.
+        Creá un perfil nuevo solo con tu nombre. Si ya existe, usá registro o
+        login con email y contraseña.
       </p>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">

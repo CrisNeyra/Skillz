@@ -7,6 +7,7 @@ from app.models.user import (
     MediaPost,
     Profile,
     ProfileSkill,
+    RefreshToken,
     SkillTag,
     User,
     WorkExperience,
@@ -14,6 +15,7 @@ from app.models.user import (
 
 __all__ = [
     "User",
+    "RefreshToken",
     "Profile",
     "CustomizationSettings",
     "MediaPost",

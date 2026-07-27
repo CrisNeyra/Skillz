@@ -50,6 +50,9 @@ uv pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+Al arrancar, el API corre migraciones Alembic automáticamente (`alembic upgrade head`).  
+Tests: `python -m pytest tests -q`
+
 Health: http://localhost:8000/health  
 Docs: http://localhost:8000/docs
 
