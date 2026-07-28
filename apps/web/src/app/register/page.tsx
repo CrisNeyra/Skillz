@@ -33,7 +33,7 @@ export default function RegisterPage() {
     setError(null);
     try {
       const username = form.username.trim().toLowerCase();
-      const me = await register({
+      await register({
         email: form.email.trim(),
         username,
         password: form.password,

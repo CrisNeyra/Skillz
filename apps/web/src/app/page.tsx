@@ -16,23 +16,26 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user || !accessToken) {
-      setProfile(null);
-      return;
-    }
-    setError(null);
+    if (!user || !accessToken) return;
+    let cancelled = false;
     apiClient<ProfileBundle>(`/profiles/${user.username}`, { token: accessToken })
       .then((data) => {
+        if (cancelled) return;
         if (!data.onboarding_completed) {
           window.location.href = "/onboarding";
           return;
         }
         setProfile({ ...data, is_owner: true });
+        setError(null);
       })
       .catch((err) => {
+        if (cancelled) return;
         setProfile(null);
         setError(err instanceof Error ? err.message : "No se pudo cargar tu perfil");
       });
+    return () => {
+      cancelled = true;
+    };
   }, [user, accessToken]);
 
   if (loading) {

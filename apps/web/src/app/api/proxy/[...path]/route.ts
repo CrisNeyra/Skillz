@@ -19,7 +19,7 @@ async function refreshTokens(request: NextRequest) {
 }
 
 async function ensureAccess(request: NextRequest) {
-  let access = request.cookies.get(ACCESS_COOKIE)?.value ?? null;
+  const access = request.cookies.get(ACCESS_COOKIE)?.value ?? null;
   if (access) return { access, refreshed: null as null | { access_token: string; refresh_token: string } };
 
   const tokens = await refreshTokens(request);

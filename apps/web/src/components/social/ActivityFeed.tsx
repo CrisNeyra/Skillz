@@ -33,7 +33,10 @@ export function ActivityFeed() {
   };
 
   useEffect(() => {
-    void load();
+    if (!accessToken) return;
+    queueMicrotask(() => {
+      void load();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 

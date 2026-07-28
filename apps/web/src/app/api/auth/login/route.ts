@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearAuthCookies, setAuthCookies, upstream } from "@/lib/auth-cookies";
+import { setAuthCookies, upstream } from "@/lib/auth-cookies";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();

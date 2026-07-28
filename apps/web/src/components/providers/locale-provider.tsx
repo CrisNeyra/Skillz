@@ -276,8 +276,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
     if (stored && DICTS[stored]) {
-      setLocaleState(stored);
-      document.documentElement.lang = stored;
+      queueMicrotask(() => {
+        setLocaleState(stored);
+        document.documentElement.lang = stored;
+      });
     }
   }, []);
 

@@ -15,14 +15,21 @@ export function Navbar() {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    if (!accessToken) {
-      setUnread(0);
-      return;
-    }
+    if (!accessToken) return;
+    let cancelled = false;
     apiClient<{ count: number }>("/notifications/unread-count", { token: accessToken })
-      .then((d) => setUnread(d.count))
-      .catch(() => setUnread(0));
+      .then((d) => {
+        if (!cancelled) setUnread(d.count);
+      })
+      .catch(() => {
+        if (!cancelled) setUnread(0);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken]);
+
+  const unreadBadge = accessToken ? unread : 0;
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#6d28d9]/15 bg-white/85 backdrop-blur-md">
@@ -65,9 +72,9 @@ export function Navbar() {
                 )}
               >
                 Alertas
-                {unread > 0 ? (
+                {unreadBadge > 0 ? (
                   <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#6d28d9] px-1 text-[10px] text-white">
-                    {unread > 9 ? "9+" : unread}
+                    {unreadBadge > 9 ? "9+" : unreadBadge}
                   </span>
                 ) : null}
               </Link>
