@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import (
     Comment,
     CustomizationSettings,
+    Follow,
     MediaPost,
     Profile,
     ProfileSkill,
@@ -42,18 +43,42 @@ def slugify(name: str) -> str:
     return s.strip("-") or "skill"
 
 
-def media_to_out(m: MediaPost | None) -> MediaOut | None:
+def media_to_out(m: MediaPost | None, viewer_id: int | None = None) -> MediaOut | None:
     if m is None:
         return None
-    return MediaOut.model_validate(m)
+    likes = list(getattr(m, "likes", []) or [])
+    return MediaOut(
+        id=m.id,
+        url=m.url,
+        media_type=m.media_type,
+        slot=m.slot,
+        caption=m.caption,
+        cloudinary_public_id=m.cloudinary_public_id,
+        like_count=len(likes),
+        liked_by_me=bool(viewer_id and any(lk.user_id == viewer_id for lk in likes)),
+    )
 
 
-def build_layout(media: list[MediaPost]) -> LayoutSlots:
+def build_layout(media: list[MediaPost], viewer_id: int | None = None) -> LayoutSlots:
     by_slot = {m.slot: m for m in media if m.is_active}
     return LayoutSlots(
-        hero=media_to_out(by_slot.get("hero")),
-        left=[media_to_out(by_slot.get(f"left_{i}")) for i in range(1, 4)],
-        right=[media_to_out(by_slot.get(f"right_{i}")) for i in range(1, 4)],
+        hero=media_to_out(by_slot.get("hero"), viewer_id),
+        left=[media_to_out(by_slot.get(f"left_{i}"), viewer_id) for i in range(1, 4)],
+        right=[media_to_out(by_slot.get(f"right_{i}"), viewer_id) for i in range(1, 4)],
+    )
+
+
+def comment_to_out(c: Comment, viewer_id: int | None = None) -> CommentOut:
+    likes = list(getattr(c, "likes", []) or [])
+    return CommentOut(
+        id=c.id,
+        body=c.body,
+        author_username=c.author.username,
+        author_id=c.author_id,
+        parent_id=c.parent_id,
+        created_at=c.created_at or datetime.utcnow(),
+        like_count=len(likes),
+        liked_by_me=bool(viewer_id and any(lk.user_id == viewer_id for lk in likes)),
     )
 
 
@@ -65,13 +90,14 @@ def get_profile_by_username(db: Session, username: str) -> Profile | None:
         db.query(Profile)
         .options(
             joinedload(Profile.customization),
-            joinedload(Profile.media_posts),
+            joinedload(Profile.media_posts).joinedload(MediaPost.likes),
             joinedload(Profile.skills).joinedload(ProfileSkill.skill_tag),
             joinedload(Profile.skills).joinedload(ProfileSkill.endorsements),
             joinedload(Profile.diplomas),
             joinedload(Profile.experiences),
             joinedload(Profile.links),
             joinedload(Profile.comments).joinedload(Comment.author),
+            joinedload(Profile.comments).joinedload(Comment.likes),
             joinedload(Profile.user),
         )
         .filter(Profile.user_id == user.id)
@@ -91,10 +117,16 @@ def ensure_customization(db: Session, profile: Profile) -> CustomizationSettings
     return settings
 
 
-def serialize_profile(profile: Profile, viewer: User | None = None) -> ProfileBundle:
+def serialize_profile(
+    profile: Profile,
+    viewer: User | None = None,
+    db: Session | None = None,
+    comments_limit: int = 20,
+) -> ProfileBundle:
     customization = profile.customization or CustomizationSettings(
         profile_id=profile.id, font_family="Space Grotesk", bg_color="#ffffff"
     )
+    viewer_id = viewer.id if viewer else None
     skills = [
         SkillOut(
             id=ps.id,
@@ -106,17 +138,34 @@ def serialize_profile(profile: Profile, viewer: User | None = None) -> ProfileBu
         )
         for ps in profile.skills
     ]
-    comments = [
-        CommentOut(
-            id=c.id,
-            body=c.body,
-            author_username=c.author.username,
-            author_id=c.author_id,
-            parent_id=c.parent_id,
-            created_at=c.created_at or datetime.utcnow(),
+    sorted_comments = sorted(
+        profile.comments, key=lambda x: x.created_at or datetime.utcnow(), reverse=True
+    )
+    page = sorted_comments[:comments_limit]
+    next_cursor = page[-1].id if len(sorted_comments) > comments_limit else None
+    comments = [comment_to_out(c, viewer_id) for c in page]
+
+    follower_count = 0
+    following_count = 0
+    is_following = False
+    if db is not None:
+        follower_count = (
+            db.query(Follow).filter(Follow.following_id == profile.user_id).count()
         )
-        for c in sorted(profile.comments, key=lambda x: x.created_at or datetime.utcnow(), reverse=True)
-    ]
+        following_count = (
+            db.query(Follow).filter(Follow.follower_id == profile.user_id).count()
+        )
+        if viewer and viewer.id != profile.user_id:
+            is_following = (
+                db.query(Follow)
+                .filter(
+                    Follow.follower_id == viewer.id,
+                    Follow.following_id == profile.user_id,
+                )
+                .first()
+                is not None
+            )
+
     return ProfileBundle(
         profile=ProfilePublic(
             id=profile.id,
@@ -131,13 +180,18 @@ def serialize_profile(profile: Profile, viewer: User | None = None) -> ProfileBu
             contact_email=getattr(profile, "contact_email", None),
         ),
         customization=CustomizationOut.model_validate(customization),
-        layout=build_layout(list(profile.media_posts)),
+        layout=build_layout(list(profile.media_posts), viewer_id),
         skills=skills,
         diplomas=[DiplomaOut.model_validate(d) for d in profile.diplomas],
         experiences=[ExperienceOut.model_validate(e) for e in profile.experiences],
         links=[LinkOut.model_validate(link) for link in sorted(profile.links, key=lambda l: l.sort_order)],
         comments=comments,
         is_owner=bool(viewer and viewer.id == profile.user_id),
+        is_following=is_following,
+        follower_count=follower_count,
+        following_count=following_count,
+        onboarding_completed=bool(getattr(profile, "onboarding_completed", False)),
+        comments_next_cursor=next_cursor,
     )
 
 

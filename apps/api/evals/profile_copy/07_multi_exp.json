@@ -1,0 +1,14 @@
+{
+  "id": "07_multi_exp",
+  "input": {
+    "display_name": "Carla",
+    "headline": "Data analyst",
+    "bio": "Analizo métricas de producto.",
+    "skills": ["SQL", "Python"],
+    "experiences": [
+      {"company": "Despegar", "role": "Analyst", "description": "Dashboards"},
+      {"company": "Auth0", "role": "Intern", "description": null}
+    ]
+  },
+  "forbidden_companies": ["Google", "Meta", "Snowflake"]
+}

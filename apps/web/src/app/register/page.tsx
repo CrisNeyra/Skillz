@@ -3,7 +3,9 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AuthLanguageFooter } from "@/components/auth/AuthLanguageFooter";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useLocale } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +16,7 @@ const fieldClass =
 
 export default function RegisterPage() {
   const { register } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const [form, setForm] = useState({
     email: "",
@@ -36,7 +39,7 @@ export default function RegisterPage() {
         password: form.password,
         display_name: form.display_name.trim(),
       });
-      router.push(`/u/${me.username}`);
+      router.push("/onboarding");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo registrar");
     } finally {
@@ -50,16 +53,15 @@ export default function RegisterPage() {
         className="mb-2 text-3xl font-semibold text-[#1a1025]"
         style={{ fontFamily: "var(--font-skillz-display), sans-serif" }}
       >
-        Registrarse
+        {t.registerTitle}
       </h1>
-      <p className="mb-6 text-sm text-[#1a1025]/55">
-        Creá tu cuenta con email y contraseña.
-      </p>
+      <p className="mb-6 text-sm text-[#1a1025]/55">{t.registerSubtitle}</p>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="display_name">Nombre visible</Label>
+          <Label htmlFor="display_name">{t.registerDisplayName}</Label>
           <Input
             id="display_name"
+            name="display_name"
             value={form.display_name}
             onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))}
             required
@@ -68,9 +70,10 @@ export default function RegisterPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="username">Username</Label>
+          <Label htmlFor="username">{t.registerUsername}</Label>
           <Input
             id="username"
+            name="username"
             value={form.username}
             onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
             required
@@ -82,9 +85,10 @@ export default function RegisterPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t.registerEmail}</Label>
           <Input
             id="email"
+            name="email"
             type="email"
             value={form.email}
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -95,16 +99,17 @@ export default function RegisterPage() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Contraseña (mín. 8)</Label>
+          <Label htmlFor="password">{t.registerPassword}</Label>
           <PasswordInput
             id="password"
+            name="password"
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
             required
             minLength={8}
             autoComplete="new-password"
             className={fieldClass}
-            placeholder="Mínimo 8 caracteres"
+            placeholder="••••••••"
           />
         </div>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -113,15 +118,16 @@ export default function RegisterPage() {
           disabled={pending}
           className="h-10 w-full bg-[#6d28d9] text-white hover:bg-[#5b21b6]"
         >
-          {pending ? "Creando…" : "Crear cuenta"}
+          {pending ? t.registerPending : t.registerSubmit}
         </Button>
       </form>
       <p className="mt-4 text-sm text-[#1a1025]/50">
-        ¿Ya tenés cuenta?{" "}
+        {t.registerHasAccount}{" "}
         <Link href="/login" className="text-[#6d28d9] underline-offset-4 hover:underline">
-          Iniciar sesión
+          {t.registerLoginLink}
         </Link>
       </p>
+      <AuthLanguageFooter />
     </div>
   );
 }

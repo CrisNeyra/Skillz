@@ -1,0 +1,11 @@
+{
+  "id": "09_headline_only",
+  "input": {
+    "display_name": "Nora",
+    "headline": "Mobile engineer iOS",
+    "bio": null,
+    "skills": ["Swift"],
+    "experiences": []
+  },
+  "forbidden_companies": ["Apple", "Uber", "PedidosYa"]
+}

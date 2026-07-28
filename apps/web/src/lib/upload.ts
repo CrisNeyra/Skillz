@@ -36,7 +36,7 @@ function assertAllowedFile(slot: string, file: File) {
 }
 
 async function uploadLocal(
-  token: string,
+  _token: string,
   slot: string,
   file: File,
 ): Promise<{ url: string; media?: MediaOut; slot: string }> {
@@ -45,7 +45,7 @@ async function uploadLocal(
   form.append("file", file);
   const res = await fetch(`${API_PUBLIC_URL}/media/upload`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
     body: form,
   });
   if (!res.ok) {

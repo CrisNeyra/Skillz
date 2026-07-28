@@ -1,3 +1,3 @@
-from app.routers import auth, feed, media, profiles
+from app.routers import ai, auth, feed, media, profiles, social
 
-__all__ = ["auth", "feed", "media", "profiles"]
+__all__ = ["ai", "auth", "feed", "media", "profiles", "social"]

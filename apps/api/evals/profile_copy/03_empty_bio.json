@@ -1,0 +1,11 @@
+{
+  "id": "03_empty_bio",
+  "input": {
+    "display_name": "Sofía",
+    "headline": null,
+    "bio": null,
+    "skills": ["Figma", "UX Research"],
+    "experiences": []
+  },
+  "forbidden_companies": ["Apple", "Spotify", "Rappi"]
+}

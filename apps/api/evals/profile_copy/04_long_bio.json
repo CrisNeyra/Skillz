@@ -1,0 +1,11 @@
+{
+  "id": "04_long_bio",
+  "input": {
+    "display_name": "Marco",
+    "headline": "Full-stack",
+    "bio": "Desarrollo productos web de punta a punta. Me interesa el DX y la calidad del código.",
+    "skills": ["Next.js", "Node"],
+    "experiences": [{"company": "Local Startup", "role": "Dev", "description": null}]
+  },
+  "forbidden_companies": ["Netflix", "Uber", "Airbnb"]
+}

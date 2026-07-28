@@ -1,0 +1,13 @@
+{
+  "id": "02_with_company",
+  "input": {
+    "display_name": "Luis Gómez",
+    "headline": "Backend engineer",
+    "bio": "Trabajo con FastAPI y Postgres.",
+    "skills": ["Python", "FastAPI"],
+    "experiences": [
+      {"company": "Globant", "role": "Backend", "description": "APIs internas"}
+    ]
+  },
+  "forbidden_companies": ["Google", "Amazon", "Mercado Libre", "Stripe"]
+}

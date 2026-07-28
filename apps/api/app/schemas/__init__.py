@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # ---- Auth ----
@@ -12,8 +12,20 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    """Accepts email or username in `login` (alias `email` for backward compat)."""
+
     password: str
+    login: str | None = Field(default=None, min_length=1, max_length=255)
+    email: str | None = Field(default=None, min_length=1, max_length=255)
+
+    @model_validator(mode="after")
+    def require_identifier(self) -> "LoginRequest":
+        if not (self.login or self.email):
+            raise ValueError("login or email required")
+        return self
+
+    def identifier(self) -> str:
+        return (self.login or self.email or "").strip()
 
 
 class EnterRequest(BaseModel):
@@ -76,6 +88,8 @@ class MediaOut(BaseModel):
     slot: str
     caption: str | None
     cloudinary_public_id: str
+    like_count: int = 0
+    liked_by_me: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -160,6 +174,8 @@ class CommentOut(BaseModel):
     author_id: int
     parent_id: int | None
     created_at: datetime
+    like_count: int = 0
+    liked_by_me: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -193,3 +209,118 @@ class ProfileBundle(BaseModel):
     links: list[LinkOut]
     comments: list[CommentOut]
     is_owner: bool = False
+    is_following: bool = False
+    follower_count: int = 0
+    following_count: int = 0
+    onboarding_completed: bool = False
+    comments_next_cursor: int | None = None
+
+
+# ---- AI ----
+class SuggestProfileCopyRequest(BaseModel):
+    headline: str | None = Field(default=None, max_length=200)
+    bio: str | None = Field(default=None, max_length=4000)
+    tone: str | None = Field(default=None, pattern=r"^(formal|creative|technical)$")
+
+
+class SuggestProfileCopyResponse(BaseModel):
+    headline: str
+    bio: str
+    sources: list[str]
+    event_id: int | None = None
+
+
+class SuggestionEventUpdate(BaseModel):
+    accepted: bool
+
+
+class SuggestSkillsResponse(BaseModel):
+    skills: list[str]
+    sources: list[str]
+    event_id: int | None = None
+
+
+class SuggestCaptionRequest(BaseModel):
+    slot: str | None = None
+    hint: str | None = Field(default=None, max_length=200)
+
+
+class SuggestCaptionResponse(BaseModel):
+    caption: str
+    event_id: int | None = None
+
+
+class ProfileCoachResponse(BaseModel):
+    score: int
+    tips: list[str]
+    gaps: list[str]
+
+
+class SimilarProfileOut(BaseModel):
+    username: str
+    display_name: str
+    headline: str | None
+    avatar_url: str | None
+    shared_skills: list[str]
+    score: float
+
+
+# ---- Social ----
+class UserCardOut(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    headline: str | None = None
+    avatar_url: str | None = None
+
+
+class FollowStatusOut(BaseModel):
+    following: bool
+    follower_count: int
+    following_count: int
+
+
+class ActivityEventOut(BaseModel):
+    id: int
+    event_type: str
+    summary: str
+    actor_username: str
+    actor_display_name: str
+    profile_username: str | None = None
+    ref_id: int | None = None
+    created_at: datetime
+    media_url: str | None = None
+
+
+class ActivityFeedOut(BaseModel):
+    items: list[ActivityEventOut]
+    next_cursor: int | None = None
+
+
+class SearchResultOut(BaseModel):
+    items: list[UserCardOut]
+    next_cursor: int | None = None
+
+
+class NotificationOut(BaseModel):
+    id: int
+    notif_type: str
+    body: str
+    actor_username: str | None = None
+    ref_id: int | None = None
+    read_at: datetime | None = None
+    created_at: datetime
+
+
+class CommentReportIn(BaseModel):
+    reason: str = Field(default="spam", max_length=200)
+
+
+class PaginatedComments(BaseModel):
+    items: list[CommentOut]
+    next_cursor: int | None = None
+
+
+class LikeStatusOut(BaseModel):
+    liked: bool
+    like_count: int

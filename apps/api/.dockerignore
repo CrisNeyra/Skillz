@@ -1,0 +1,10 @@
+.dockerignore
+__pycache__
+*.pyc
+.venv
+venv
+.env
+*.db
+uploads
+.pytest_cache
+evals/__pycache__

@@ -2,8 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ProfileBundle } from "@/types/api";
+import type { CommentOut, ProfileBundle } from "@/types/api";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useLocale } from "@/components/providers/locale-provider";
 import { apiClient } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,26 +12,29 @@ import { Separator } from "@/components/ui/separator";
 
 export function ProfileDetails({ data }: { data: ProfileBundle }) {
   const { user, accessToken } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [comments, setComments] = useState<CommentOut[]>(data.comments);
 
   const onComment = async (e: FormEvent) => {
     e.preventDefault();
     if (!accessToken) {
-      setError("Entrá con tu nombre para comentar");
+      setError(t.loginError);
       return;
     }
     setPending(true);
     setError(null);
     try {
-      await apiClient(`/profiles/${data.profile.username}/comments`, {
+      const created = await apiClient<CommentOut>(`/profiles/${data.profile.username}/comments`, {
         method: "POST",
         token: accessToken,
         body: JSON.stringify({ body }),
       });
       setBody("");
+      setComments((prev) => [created, ...prev]);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo comentar");
@@ -48,28 +52,69 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
     router.refresh();
   };
 
+  const toggleLike = async (c: CommentOut) => {
+    if (!accessToken) return;
+    const liked = Boolean(c.liked_by_me);
+    const res = await apiClient<{ liked: boolean; like_count: number }>(
+      `/comments/${c.id}/like`,
+      { method: liked ? "DELETE" : "POST", token: accessToken },
+    );
+    setComments((prev) =>
+      prev.map((item) =>
+        item.id === c.id
+          ? { ...item, liked_by_me: res.liked, like_count: res.like_count }
+          : item,
+      ),
+    );
+  };
+
+  const report = async (commentId: number) => {
+    if (!accessToken) return;
+    await apiClient(`/comments/${commentId}/report`, {
+      method: "POST",
+      token: accessToken,
+      body: JSON.stringify({ reason: "spam" }),
+    });
+    setError(null);
+  };
+
   const sectionTitle = {
     className: "mb-3 text-sm uppercase tracking-[0.2em]",
     style: { color: "var(--profile-faint)" } as const,
   };
 
+  const extraLinks = data.links.filter((l) => {
+    const label = l.label.toLowerCase();
+    const url = l.url.toLowerCase();
+    const isX =
+      label === "x" ||
+      label.includes("twitter") ||
+      url.includes("twitter.com") ||
+      url.includes("x.com/");
+    return !isX;
+  });
+
   return (
     <div className="space-y-8 border-t pt-8" style={{ borderColor: "var(--profile-border)" }}>
-      {data.profile.bio ? (
-        <section>
-          <h2 {...sectionTitle}>Sobre mí</h2>
+      <section>
+        <h2 {...sectionTitle}>{t.aboutMe}</h2>
+        {data.profile.bio ? (
           <p className="max-w-3xl text-base leading-relaxed" style={{ color: "var(--profile-muted)" }}>
             {data.profile.bio}
           </p>
-        </section>
-      ) : null}
+        ) : (
+          <p className="text-sm" style={{ color: "var(--profile-faint)" }}>
+            {data.is_owner ? t.noBioOwner : t.noBio}
+          </p>
+        )}
+      </section>
 
       <section>
-        <h2 {...sectionTitle}>Skills</h2>
+        <h2 {...sectionTitle}>{t.skills}</h2>
         <div className="flex flex-wrap gap-2">
           {data.skills.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin skills todavía.
+              {t.noSkills}
             </p>
           ) : (
             data.skills.map((s) => (
@@ -94,60 +139,11 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
         </div>
       </section>
 
-      <section>
-        <h2 {...sectionTitle}>Experiencia</h2>
-        <ul className="space-y-4">
-          {data.experiences.length === 0 ? (
-            <li className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin experiencia cargada.
-            </li>
-          ) : (
-            data.experiences.map((exp) => (
-              <li key={exp.id}>
-                <p className="font-medium">{exp.role}</p>
-                <p className="text-sm" style={{ color: "var(--profile-muted)" }}>
-                  {exp.company}
-                </p>
-                {exp.description ? (
-                  <p className="mt-1 text-sm" style={{ color: "var(--profile-muted)" }}>
-                    {exp.description}
-                  </p>
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
-
-      <section>
-        <h2 {...sectionTitle}>Diplomas</h2>
-        <ul className="space-y-3">
-          {data.diplomas.length === 0 ? (
-            <li className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin diplomas.
-            </li>
-          ) : (
-            data.diplomas.map((d) => (
-              <li key={d.id} className="text-sm">
-                <span className="font-medium">{d.title}</span>
-                {d.issuer ? (
-                  <span style={{ color: "var(--profile-muted)" }}> — {d.issuer}</span>
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
-
-      <section>
-        <h2 {...sectionTitle}>Links</h2>
-        <div className="flex flex-wrap gap-3">
-          {data.links.length === 0 ? (
-            <p className="text-sm" style={{ color: "var(--profile-faint)" }}>
-              Sin links externos.
-            </p>
-          ) : (
-            data.links.map((l) => (
+      {extraLinks.length > 0 ? (
+        <section>
+          <h2 {...sectionTitle}>Links</h2>
+          <div className="flex flex-wrap gap-3">
+            {extraLinks.map((l) => (
               <a
                 key={l.id}
                 href={l.url}
@@ -158,20 +154,20 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
               >
                 {l.label}
               </a>
-            ))
-          )}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <Separator style={{ background: "var(--profile-border)" }} />
 
       <section>
-        <h2 {...sectionTitle}>Comentarios / endorsements</h2>
+        <h2 {...sectionTitle}>{t.comments}</h2>
         <form onSubmit={onComment} className="mb-4 space-y-2">
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Dejá un comentario o endorsement…"
+            placeholder={t.commentPlaceholder}
             className="min-h-24"
             style={{
               borderColor: "var(--profile-border)",
@@ -185,11 +181,11 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
             disabled={pending}
             className="bg-[#6d28d9] text-white hover:bg-[#5b21b6]"
           >
-            {pending ? "Enviando…" : "Comentar"}
+            {pending ? t.commentPending : t.commentSubmit}
           </Button>
         </form>
         <ul className="space-y-3">
-          {data.comments.map((c) => (
+          {comments.map((c) => (
             <li
               key={c.id}
               className="rounded-md p-3"
@@ -202,6 +198,27 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
                 @{c.author_username}
               </p>
               <p className="mt-1 text-sm">{c.body}</p>
+              <div className="mt-2 flex gap-3 text-xs">
+                <button
+                  type="button"
+                  disabled={!accessToken}
+                  onClick={() => void toggleLike(c)}
+                  className="underline-offset-2 hover:underline disabled:opacity-40"
+                  style={{ color: "var(--profile-accent)" }}
+                >
+                  {c.liked_by_me ? "Unlike" : "Like"} · {c.like_count ?? 0}
+                </button>
+                {accessToken && user?.id !== c.author_id ? (
+                  <button
+                    type="button"
+                    onClick={() => void report(c.id)}
+                    className="underline-offset-2 hover:underline"
+                    style={{ color: "var(--profile-faint)" }}
+                  >
+                    Reportar
+                  </button>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>

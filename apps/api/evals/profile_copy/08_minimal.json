@@ -1,0 +1,11 @@
+{
+  "id": "08_minimal",
+  "input": {
+    "display_name": "Pat",
+    "headline": null,
+    "bio": null,
+    "skills": [],
+    "experiences": []
+  },
+  "forbidden_companies": ["Google", "OpenAI", "Anthropic"]
+}

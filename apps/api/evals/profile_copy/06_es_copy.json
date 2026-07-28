@@ -1,0 +1,11 @@
+{
+  "id": "06_es_copy",
+  "input": {
+    "display_name": "Diego",
+    "headline": "DevOps",
+    "bio": "Automatizo deploys y monitoreo con Terraform.",
+    "skills": ["Terraform", "AWS", "Docker"],
+    "experiences": []
+  },
+  "forbidden_companies": ["Amazon", "Microsoft", "HashiCorp Inc"]
+}

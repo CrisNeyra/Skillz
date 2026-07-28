@@ -7,14 +7,19 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
-from app.models import MediaPost, User
-from app.schemas import LayoutUpdate, MediaConfirm, MediaOut
+from app.core.rate_limit import limit_upload
+from app.models import MediaLike, MediaPost, User
+from app.schemas import LayoutUpdate, LikeStatusOut, MediaConfirm, MediaOut
 from app.services.cloudinary_service import create_upload_signature
+from app.services.media_validation import validate_media_confirm
+from app.services.cache import invalidate_profile
 from app.services.profile_service import (
     VALID_SLOTS,
     ensure_customization,
     get_profile_by_username,
+    media_to_out,
 )
+from app.services.activity import notify, record_activity
 from app.services.storage import UPLOAD_ROOT, cloudinary_configured, ensure_upload_dir
 
 router = APIRouter(tags=["media"])
@@ -131,6 +136,7 @@ async def upload_local(
     user: User = Depends(get_current_user),
 ):
     """Upload local (MVP) o flyer/bg/slots cuando Cloudinary no está configurado."""
+    limit_upload(user.id)
     if slot not in VALID_SLOTS and slot not in {"flyer", "bg"}:
         raise HTTPException(status_code=400, detail="Slot inválido")
 
@@ -175,7 +181,19 @@ async def upload_local(
         media_type=media_type,
         slot=slot,
     )
-    return MediaOut.model_validate(media)
+    record_activity(
+        db,
+        actor=user,
+        event_type="media",
+        summary=f"@{user.username} subió media en {slot}",
+        profile=profile,
+        ref_id=media.id,
+    )
+    db.commit()
+    invalidate_profile(user.username)
+    out = media_to_out(media, user.id)
+    assert out is not None
+    return out
 
 
 @router.get("/media/files/{filename}")
@@ -192,8 +210,10 @@ def confirm_media(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> MediaOut:
+    limit_upload(user.id)
     if payload.slot not in VALID_SLOTS:
         raise HTTPException(status_code=400, detail="Slot inválido")
+    validate_media_confirm(user, payload)
     profile = get_profile_by_username(db, user.username)
     if not profile:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
@@ -207,7 +227,74 @@ def confirm_media(
         slot=payload.slot,
         caption=payload.caption,
     )
-    return MediaOut.model_validate(media)
+    record_activity(
+        db,
+        actor=user,
+        event_type="media",
+        summary=f"@{user.username} subió media en {payload.slot}",
+        profile=profile,
+        ref_id=media.id,
+    )
+    db.commit()
+    invalidate_profile(user.username)
+    out = media_to_out(media, user.id)
+    assert out is not None
+    return out
+
+
+@router.post("/media/{media_id}/like", response_model=LikeStatusOut)
+def like_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> LikeStatusOut:
+    media = db.get(MediaPost, media_id)
+    if not media or not media.is_active:
+        raise HTTPException(status_code=404, detail="Media no encontrado")
+    existing = (
+        db.query(MediaLike)
+        .filter(MediaLike.media_id == media_id, MediaLike.user_id == user.id)
+        .first()
+    )
+    if not existing:
+        db.add(MediaLike(media_id=media_id, user_id=user.id))
+        owner = media.profile.user if media.profile else None
+        if owner:
+            notify(
+                db,
+                user_id=owner.id,
+                actor=user,
+                notif_type="like_media",
+                body=f"@{user.username} le dio like a tu media",
+                ref_id=media_id,
+            )
+            invalidate_profile(owner.username)
+        db.commit()
+    count = db.query(MediaLike).filter(MediaLike.media_id == media_id).count()
+    return LikeStatusOut(liked=True, like_count=count)
+
+
+@router.delete("/media/{media_id}/like", response_model=LikeStatusOut)
+def unlike_media(
+    media_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> LikeStatusOut:
+    media = db.get(MediaPost, media_id)
+    if not media:
+        raise HTTPException(status_code=404, detail="Media no encontrado")
+    existing = (
+        db.query(MediaLike)
+        .filter(MediaLike.media_id == media_id, MediaLike.user_id == user.id)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+        db.commit()
+        if media.profile and media.profile.user:
+            invalidate_profile(media.profile.user.username)
+    count = db.query(MediaLike).filter(MediaLike.media_id == media_id).count()
+    return LikeStatusOut(liked=False, like_count=count)
 
 
 @router.delete("/media/{media_id}")

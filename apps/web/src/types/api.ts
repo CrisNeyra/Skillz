@@ -5,6 +5,8 @@ export type MediaOut = {
   slot: string;
   caption: string | null;
   cloudinary_public_id: string;
+  like_count?: number;
+  liked_by_me?: boolean;
 };
 
 export type Customization = {
@@ -56,6 +58,8 @@ export type CommentOut = {
   author_id: number;
   parent_id: number | null;
   created_at: string;
+  like_count?: number;
+  liked_by_me?: boolean;
 };
 
 export type ProfileBundle = {
@@ -83,6 +87,56 @@ export type ProfileBundle = {
   links: LinkOut[];
   comments: CommentOut[];
   is_owner: boolean;
+  is_following?: boolean;
+  follower_count?: number;
+  following_count?: number;
+  onboarding_completed?: boolean;
+  comments_next_cursor?: number | null;
+};
+
+export type UserCard = {
+  id: number;
+  username: string;
+  display_name: string;
+  headline: string | null;
+  avatar_url: string | null;
+};
+
+export type ActivityEvent = {
+  id: number;
+  event_type: string;
+  summary: string;
+  actor_username: string;
+  actor_display_name: string;
+  profile_username: string | null;
+  ref_id: number | null;
+  created_at: string;
+  media_url: string | null;
+};
+
+export type NotificationOut = {
+  id: number;
+  notif_type: string;
+  body: string;
+  actor_username: string | null;
+  ref_id: number | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+export type SimilarProfile = {
+  username: string;
+  display_name: string;
+  headline: string | null;
+  avatar_url: string | null;
+  shared_skills: string[];
+  score: number;
+};
+
+export type ProfileCoach = {
+  score: number;
+  tips: string[];
+  gaps: string[];
 };
 
 export type UserOut = {

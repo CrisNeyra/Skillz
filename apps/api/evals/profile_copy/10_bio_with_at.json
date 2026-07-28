@@ -1,0 +1,11 @@
+{
+  "id": "10_bio_with_at",
+  "input": {
+    "display_name": "Tom",
+    "headline": "Engineer",
+    "bio": "Built internal tools at Globant for ops teams.",
+    "skills": ["Go"],
+    "experiences": [{"company": "Globant", "role": "Engineer", "description": null}]
+  },
+  "forbidden_companies": ["Google", "Meta", "Amazon"]
+}

@@ -5,6 +5,7 @@ from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db, get_optional_user
 from app.models import User
 from app.schemas import CustomizationOut, CustomizationUpdate, ProfileBundle, ProfileUpdate
+from app.services.cache import get_cached_profile, invalidate_profile, set_cached_profile
 from app.services.profile_service import (
     ensure_customization,
     get_profile_by_username,
@@ -27,8 +28,24 @@ def update_my_profile(
     for key, value in data.items():
         setattr(profile, key, value)
     db.commit()
+    invalidate_profile(user.username)
     profile = get_profile_by_username(db, user.username)
-    return serialize_profile(profile, user)
+    return serialize_profile(profile, user, db=db)
+
+
+@router.post("/me/onboarding/complete", response_model=ProfileBundle)
+def complete_onboarding(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ProfileBundle:
+    profile = get_profile_by_username(db, user.username)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    profile.onboarding_completed = True
+    db.commit()
+    invalidate_profile(user.username)
+    profile = get_profile_by_username(db, user.username)
+    return serialize_profile(profile, user, db=db)
 
 
 @router.get("/me/customization", response_model=CustomizationOut)
@@ -65,6 +82,7 @@ def update_my_customization(
         setattr(settings, key, value)
     db.commit()
     db.refresh(settings)
+    invalidate_profile(user.username)
     return CustomizationOut.model_validate(settings)
 
 
@@ -76,9 +94,16 @@ def get_public_profile(
 ) -> ProfileBundle:
     if username == "me":
         raise HTTPException(status_code=400, detail="Usá /profiles/me con autenticación")
+    if viewer is None:
+        cached = get_cached_profile(username)
+        if cached:
+            return ProfileBundle.model_validate(cached)
     profile = get_profile_by_username(db, username)
     if not profile:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     ensure_customization(db, profile)
     profile = get_profile_by_username(db, username)
-    return serialize_profile(profile, viewer)
+    bundle = serialize_profile(profile, viewer, db=db)
+    if viewer is None:
+        set_cached_profile(username, bundle.model_dump(mode="json"))
+    return bundle

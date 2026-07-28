@@ -1,0 +1,11 @@
+{
+  "id": "01_basic_skills",
+  "input": {
+    "display_name": "Ana Pérez",
+    "headline": "Frontend developer",
+    "bio": "Me gusta construir UIs accesibles con React.",
+    "skills": ["React", "TypeScript", "CSS"],
+    "experiences": []
+  },
+  "forbidden_companies": ["Google", "Meta", "Acme Corp", "Nubank"]
+}

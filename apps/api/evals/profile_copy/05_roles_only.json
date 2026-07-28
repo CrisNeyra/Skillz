@@ -1,0 +1,13 @@
+{
+  "id": "05_roles_only",
+  "input": {
+    "display_name": "Elena",
+    "headline": "Product designer",
+    "bio": "",
+    "skills": [],
+    "experiences": [
+      {"company": "Banco Galicia", "role": "Designer", "description": "Design system"}
+    ]
+  },
+  "forbidden_companies": ["Santander", "BBVA", "Google"]
+}

@@ -9,100 +9,54 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiClient } from "@/lib/api";
-import type { TokenResponse, UserOut } from "@/types/api";
+import type { UserOut } from "@/types/api";
 
 type AuthContextValue = {
   user: UserOut | null;
   accessToken: string | null;
   loading: boolean;
-  enter: (displayName: string) => Promise<UserOut>;
-  login: (email: string, password: string) => Promise<UserOut>;
+  login: (login: string, password: string) => Promise<UserOut>;
   register: (data: {
     email: string;
     username: string;
     password: string;
     display_name: string;
   }) => Promise<UserOut>;
-  logout: () => void;
+  logout: () => Promise<void>;
   getAccessToken: () => Promise<string>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const ACCESS_KEY = "skillz_access";
-const REFRESH_KEY = "skillz_refresh";
-
-function readStoredTokens() {
-  return {
-    access: localStorage.getItem(ACCESS_KEY),
-    refresh: localStorage.getItem(REFRESH_KEY),
-  };
+async function parseError(res: Response) {
+  try {
+    const body = await res.json();
+    if (typeof body.detail === "string") return body.detail;
+  } catch {
+    /* ignore */
+  }
+  return "Error de autenticación";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserOut | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const persist = useCallback((tokens: TokenResponse) => {
-    localStorage.setItem(ACCESS_KEY, tokens.access_token);
-    localStorage.setItem(REFRESH_KEY, tokens.refresh_token);
-    setAccessToken(tokens.access_token);
-  }, []);
-
-  const loadMe = useCallback(async (token: string) => {
-    const me = await apiClient<UserOut>("/auth/me", { token });
+  const loadMe = useCallback(async () => {
+    const res = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+    if (!res.ok) {
+      setUser(null);
+      throw new Error(await parseError(res));
+    }
+    const me = (await res.json()) as UserOut;
     setUser(me);
     return me;
   }, []);
 
-  const refreshSession = useCallback(async (): Promise<string> => {
-    const { refresh } = readStoredTokens();
-    if (!refresh) {
-      throw new Error("Sesión expirada. Iniciá sesión de nuevo.");
-    }
-    const tokens = await apiClient<TokenResponse>("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refresh_token: refresh }),
-    });
-    persist(tokens);
-    await loadMe(tokens.access_token);
-    return tokens.access_token;
-  }, [loadMe, persist]);
-
-  const getAccessToken = useCallback(async (): Promise<string> => {
-    const { access, refresh } = readStoredTokens();
-    if (access) {
-      try {
-        const me = await apiClient<UserOut>("/auth/me", { token: access });
-        setUser(me);
-        setAccessToken(access);
-        return access;
-      } catch {
-        /* refresh */
-      }
-    }
-    if (!refresh) {
-      setUser(null);
-      setAccessToken(null);
-      throw new Error("Sesión expirada. Iniciá sesión de nuevo.");
-    }
-    try {
-      return await refreshSession();
-    } catch {
-      localStorage.removeItem(ACCESS_KEY);
-      localStorage.removeItem(REFRESH_KEY);
-      setUser(null);
-      setAccessToken(null);
-      throw new Error("Sesión expirada. Iniciá sesión de nuevo.");
-    }
-  }, [refreshSession]);
-
   useEffect(() => {
     const boot = async () => {
       try {
-        await getAccessToken();
+        await loadMe();
       } catch {
         /* guest */
       } finally {
@@ -110,30 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     void boot();
-  }, [getAccessToken]);
-
-  const enter = useCallback(
-    async (displayName: string) => {
-      const tokens = await apiClient<TokenResponse>("/auth/enter", {
-        method: "POST",
-        body: JSON.stringify({ display_name: displayName }),
-      });
-      persist(tokens);
-      return loadMe(tokens.access_token);
-    },
-    [loadMe, persist],
-  );
+  }, [loadMe]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      const tokens = await apiClient<TokenResponse>("/auth/login", {
+    async (loginId: string, password: string) => {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login: loginId, password }),
       });
-      persist(tokens);
-      return loadMe(tokens.access_token);
+      if (!res.ok) throw new Error(await parseError(res));
+      return loadMe();
     },
-    [loadMe, persist],
+    [loadMe],
   );
 
   const register = useCallback(
@@ -143,35 +87,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string;
       display_name: string;
     }) => {
-      const tokens = await apiClient<TokenResponse>("/auth/register", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      persist(tokens);
-      return loadMe(tokens.access_token);
+      if (!res.ok) throw new Error(await parseError(res));
+      return loadMe();
     },
-    [loadMe, persist],
+    [loadMe],
   );
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    setAccessToken(null);
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     setUser(null);
   }, []);
+
+  /** Session is cookie-based; returns opaque marker for callers that await auth readiness. */
+  const getAccessToken = useCallback(async () => {
+    await loadMe();
+    return "cookie";
+  }, [loadMe]);
 
   const value = useMemo(
     () => ({
       user,
-      accessToken,
+      accessToken: user ? "cookie" : null,
       loading,
-      enter,
       login,
       register,
       logout,
       getAccessToken,
     }),
-    [user, accessToken, loading, enter, login, register, logout, getAccessToken],
+    [user, loading, login, register, logout, getAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

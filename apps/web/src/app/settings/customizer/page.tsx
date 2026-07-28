@@ -16,7 +16,7 @@ export default function CustomizerPage() {
   useEffect(() => {
     if (loading) return;
     if (!user || !accessToken) {
-      router.replace("/entrar");
+      router.replace("/login");
       return;
     }
     apiClient<ProfileBundle>(`/profiles/${user.username}`, { token: accessToken })
