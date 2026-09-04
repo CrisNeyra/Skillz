@@ -229,6 +229,10 @@ def add_comment(
     profile = get_profile_by_username(db, username)
     if not profile:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
+    if payload.parent_id is not None:
+        parent = db.get(Comment, payload.parent_id)
+        if not parent or parent.profile_id != profile.id:
+            raise HTTPException(status_code=400, detail="Comentario padre inválido")
     comment = Comment(
         profile_id=profile.id,
         author_id=user.id,

@@ -42,10 +42,16 @@ def similar_profiles(
     if not source_skills:
         return []
 
+    source_tag_ids = [ps.skill_tag_id for ps in source.skills]
     candidates = (
         db.query(Profile)
+        .join(ProfileSkill)
         .options(joinedload(Profile.skills).joinedload(ProfileSkill.skill_tag), joinedload(Profile.user))
-        .filter(Profile.user_id != user.id)
+        .filter(
+            Profile.user_id != user.id,
+            ProfileSkill.skill_tag_id.in_(source_tag_ids),
+        )
+        .distinct()
         .limit(200)
         .all()
     )

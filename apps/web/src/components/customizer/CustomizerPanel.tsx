@@ -7,7 +7,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { useLocale } from "@/components/providers/locale-provider";
 import { apiClient } from "@/lib/api";
 import { uploadMediaSlot } from "@/lib/upload";
-import { ALLOWED_FONTS, type Customization, type DiplomaOut, type ExperienceOut, type ProfileBundle } from "@/types/api";
+import { ALLOWED_FONTS, type Customization, type DiplomaOut, type ExperienceOut, type ProfileBundle, type SkillOut } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,7 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
     contact_email: initial.profile.contact_email ?? "",
   });
   const [skillName, setSkillName] = useState("");
+  const [skills, setSkills] = useState<SkillOut[]>(initial.skills);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,14 +115,20 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
   const addSkill = async (e: FormEvent) => {
     e.preventDefault();
     if (!skillName.trim()) return;
-    const token = await getAccessToken();
-    await apiClient("/profiles/me/skills", {
-      method: "POST",
-      token,
-      body: JSON.stringify({ name: skillName, level: 3 }),
-    });
-    setSkillName("");
-    router.refresh();
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const item = await apiClient<SkillOut>("/profiles/me/skills", {
+        method: "POST",
+        token,
+        body: JSON.stringify({ name: skillName, level: 3 }),
+      });
+      setSkills((prev) => [...prev, item]);
+      setSkillName("");
+      setMessage(`Skill: ${item.name}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo agregar la skill");
+    }
   };
 
   const addDiploma = async (e: FormEvent) => {
@@ -523,6 +530,13 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
             Agregar
           </Button>
         </form>
+        <ul className="flex flex-wrap gap-2 text-sm text-[#1a1025]/70">
+          {skills.map((s) => (
+            <li key={s.id} className="rounded-full border border-[#6d28d9]/20 px-2 py-0.5">
+              {s.name}
+            </li>
+          ))}
+        </ul>
 
         <div className="space-y-3 border-t border-[#6d28d9]/15 pt-4">
           <Label>Formación (diploma)</Label>
@@ -606,7 +620,11 @@ export function CustomizerPanel({ initial }: { initial: ProfileBundle }) {
             {busy ? "Guardando…" : t.customizeSave}
           </Button>
           {message ? <span className="text-sm text-[#6d28d9]">{message}</span> : null}
-          {error ? <span className="text-sm text-red-600">{error}</span> : null}
+          {error ? (
+            <span className="text-sm text-red-600" role="alert">
+              {error}
+            </span>
+          ) : null}
         </div>
       </motion.div>
 

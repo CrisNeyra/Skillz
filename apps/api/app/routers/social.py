@@ -131,9 +131,19 @@ def list_followers(username: str, db: Session = Depends(get_db)) -> list[UserCar
         .limit(100)
         .all()
     )
+    user_ids = [row.follower_id for row in rows]
+    users = (
+        db.query(User)
+        .options(joinedload(User.profile))
+        .filter(User.id.in_(user_ids))
+        .all()
+        if user_ids
+        else []
+    )
+    by_id = {u.id: u for u in users}
     out: list[UserCardOut] = []
     for row in rows:
-        follower = db.get(User, row.follower_id)
+        follower = by_id.get(row.follower_id)
         if follower and follower.profile:
             out.append(_card(follower.profile))
     return out
@@ -151,9 +161,19 @@ def list_following(username: str, db: Session = Depends(get_db)) -> list[UserCar
         .limit(100)
         .all()
     )
+    user_ids = [row.following_id for row in rows]
+    users = (
+        db.query(User)
+        .options(joinedload(User.profile))
+        .filter(User.id.in_(user_ids))
+        .all()
+        if user_ids
+        else []
+    )
+    by_id = {u.id: u for u in users}
     out: list[UserCardOut] = []
     for row in rows:
-        followed = db.get(User, row.following_id)
+        followed = by_id.get(row.following_id)
         if followed and followed.profile:
             out.append(_card(followed.profile))
     return out
@@ -181,19 +201,40 @@ def activity_feed(
     events = q.limit(limit + 1).all()
     has_more = len(events) > limit
     events = events[:limit]
+    actor_ids = {ev.actor_user_id for ev in events}
+    profile_ids = {ev.profile_id for ev in events if ev.profile_id}
+    media_ids = {ev.ref_id for ev in events if ev.event_type == "media" and ev.ref_id}
+    actors = {
+        u.id: u
+        for u in db.query(User)
+        .options(joinedload(User.profile))
+        .filter(User.id.in_(actor_ids))
+        .all()
+    } if actor_ids else {}
+    profiles = {
+        p.id: p
+        for p in db.query(Profile)
+        .options(joinedload(Profile.user))
+        .filter(Profile.id.in_(profile_ids))
+        .all()
+    } if profile_ids else {}
+    media_by_id = {
+        m.id: m
+        for m in db.query(MediaPost).filter(MediaPost.id.in_(media_ids)).all()
+    } if media_ids else {}
     items: list[ActivityEventOut] = []
     for ev in events:
-        actor = db.get(User, ev.actor_user_id)
+        actor = actors.get(ev.actor_user_id)
         if not actor:
             continue
         profile_username = None
         media_url = None
         if ev.profile_id:
-            prof = db.get(Profile, ev.profile_id)
+            prof = profiles.get(ev.profile_id)
             if prof and prof.user:
                 profile_username = prof.user.username
         if ev.event_type == "media" and ev.ref_id:
-            media = db.get(MediaPost, ev.ref_id)
+            media = media_by_id.get(ev.ref_id)
             if media:
                 media_url = media.url
         items.append(
@@ -271,9 +312,13 @@ def list_notifications(
         .limit(50)
         .all()
     )
+    actor_ids = {n.actor_user_id for n in rows if n.actor_user_id}
+    actors = {
+        u.id: u for u in db.query(User).filter(User.id.in_(actor_ids)).all()
+    } if actor_ids else {}
     out: list[NotificationOut] = []
     for n in rows:
-        actor = db.get(User, n.actor_user_id) if n.actor_user_id else None
+        actor = actors.get(n.actor_user_id) if n.actor_user_id else None
         out.append(
             NotificationOut(
                 id=n.id,

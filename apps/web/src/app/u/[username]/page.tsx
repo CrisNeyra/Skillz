@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { FotologLayout } from "@/components/fotolog/FotologLayout";
@@ -29,7 +30,7 @@ async function resolveAccessToken(): Promise<string | null> {
   }
 }
 
-async function loadProfile(username: string): Promise<ProfileBundle | null> {
+const loadProfile = cache(async (username: string): Promise<ProfileBundle | null> => {
   const token = await resolveAccessToken();
   try {
     return await apiServer<ProfileBundle>(`/profiles/${username}`, {
@@ -38,7 +39,7 @@ async function loadProfile(username: string): Promise<ProfileBundle | null> {
   } catch {
     return null;
   }
-}
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params;

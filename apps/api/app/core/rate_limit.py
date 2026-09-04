@@ -33,6 +33,16 @@ class MemoryRateLimiter:
 
 
 memory_limiter = MemoryRateLimiter(max_calls=30, window_seconds=60)
+_memory_limiters: dict[tuple[int, int], MemoryRateLimiter] = {}
+
+
+def _memory_for(max_calls: int, window_seconds: int) -> MemoryRateLimiter:
+    key = (max_calls, window_seconds)
+    limiter = _memory_limiters.get(key)
+    if limiter is None:
+        limiter = MemoryRateLimiter(max_calls=max_calls, window_seconds=window_seconds)
+        _memory_limiters[key] = limiter
+    return limiter
 
 
 def _get_redis():
@@ -59,9 +69,7 @@ def _get_redis():
 def _check_redis(key: str, max_calls: int, window_seconds: int) -> None:
     client = _get_redis()
     if client is None:
-        memory_limiter.max_calls = max_calls
-        memory_limiter.window = window_seconds
-        memory_limiter.check(key)
+        _memory_for(max_calls, window_seconds).check(key)
         return
     redis_key = f"rl:{key}"
     count = int(client.incr(redis_key))

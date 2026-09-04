@@ -12,6 +12,6 @@ test.describe("login demo → home", () => {
     await expect(page).toHaveURL(/\/(u\/test)?$/, { timeout: 20_000 });
     await page.goto("/");
     await expect(page.getByText(/tu home|your home/i)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/demo talent/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Demo Talent" })).toBeVisible();
   });
 });

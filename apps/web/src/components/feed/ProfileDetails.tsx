@@ -45,37 +45,49 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
 
   const endorse = async (skillId: number) => {
     if (!accessToken) return;
-    await apiClient(`/skills/${skillId}/endorse`, {
-      method: "POST",
-      token: accessToken,
-    });
-    router.refresh();
+    try {
+      await apiClient(`/skills/${skillId}/endorse`, {
+        method: "POST",
+        token: accessToken,
+      });
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo endorsar");
+    }
   };
 
   const toggleLike = async (c: CommentOut) => {
     if (!accessToken) return;
-    const liked = Boolean(c.liked_by_me);
-    const res = await apiClient<{ liked: boolean; like_count: number }>(
-      `/comments/${c.id}/like`,
-      { method: liked ? "DELETE" : "POST", token: accessToken },
-    );
-    setComments((prev) =>
-      prev.map((item) =>
-        item.id === c.id
-          ? { ...item, liked_by_me: res.liked, like_count: res.like_count }
-          : item,
-      ),
-    );
+    try {
+      const liked = Boolean(c.liked_by_me);
+      const res = await apiClient<{ liked: boolean; like_count: number }>(
+        `/comments/${c.id}/like`,
+        { method: liked ? "DELETE" : "POST", token: accessToken },
+      );
+      setComments((prev) =>
+        prev.map((item) =>
+          item.id === c.id
+            ? { ...item, liked_by_me: res.liked, like_count: res.like_count }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo dar like");
+    }
   };
 
   const report = async (commentId: number) => {
     if (!accessToken) return;
-    await apiClient(`/comments/${commentId}/report`, {
-      method: "POST",
-      token: accessToken,
-      body: JSON.stringify({ reason: "spam" }),
-    });
-    setError(null);
+    try {
+      await apiClient(`/comments/${commentId}/report`, {
+        method: "POST",
+        token: accessToken,
+        body: JSON.stringify({ reason: "spam" }),
+      });
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo reportar");
+    }
   };
 
   const sectionTitle = {
@@ -175,7 +187,11 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
               color: "var(--profile-fg)",
             }}
           />
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <p className="text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          ) : null}
           <Button
             type="submit"
             disabled={pending}
@@ -184,6 +200,11 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
             {pending ? t.commentPending : t.commentSubmit}
           </Button>
         </form>
+        {comments.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--profile-faint)" }}>
+            {t.noComments}
+          </p>
+        ) : null}
         <ul className="space-y-3">
           {comments.map((c) => (
             <li
@@ -206,7 +227,7 @@ export function ProfileDetails({ data }: { data: ProfileBundle }) {
                   className="underline-offset-2 hover:underline disabled:opacity-40"
                   style={{ color: "var(--profile-accent)" }}
                 >
-                  {c.liked_by_me ? "Unlike" : "Like"} · {c.like_count ?? 0}
+                  {c.liked_by_me ? "Quitar like" : "Like"} · {c.like_count ?? 0}
                 </button>
                 {accessToken && user?.id !== c.author_id ? (
                   <button

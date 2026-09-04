@@ -112,7 +112,11 @@ export default function RegisterPage() {
             placeholder="••••••••"
           />
         </div>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        ) : null}
         <Button
           type="submit"
           disabled={pending}

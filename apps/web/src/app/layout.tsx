@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Outfit, Space_Grotesk } from "next/font/google";
 import { AuthProvider } from "@/components/providers/auth-provider";
-import { LocaleProvider } from "@/components/providers/locale-provider";
+import { LocaleProvider, type Locale } from "@/components/providers/locale-provider";
 import { Navbar } from "@/components/layout/Navbar";
 import "./globals.css";
 
@@ -20,17 +21,29 @@ export const metadata: Metadata = {
   description: "Tu lugar para tus Skillz, oportunidades para quedarse.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const jar = await cookies();
+  const cookieLocale = jar.get("skillz_locale")?.value;
+  const initialLocale: Locale =
+    cookieLocale === "en" ||
+    cookieLocale === "es" ||
+    cookieLocale === "pt" ||
+    cookieLocale === "fr" ||
+    cookieLocale === "it" ||
+    cookieLocale === "de"
+      ? cookieLocale
+      : "es";
+
   return (
     <html
-      lang="es"
+      lang={initialLocale}
       className={`${spaceGrotesk.variable} ${outfit.variable} h-full antialiased`}
     >
       <body
         className="flex min-h-full flex-col bg-white text-[#1a1025]"
         style={{ fontFamily: "var(--font-skillz-body), sans-serif" }}
       >
-        <LocaleProvider>
+        <LocaleProvider initialLocale={initialLocale}>
           <AuthProvider>
             <Navbar />
             <main className="flex-1">{children}</main>

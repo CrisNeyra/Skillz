@@ -6,6 +6,11 @@ from app.core.deps import get_current_user, get_db, get_optional_user
 from app.models import User
 from app.schemas import CustomizationOut, CustomizationUpdate, ProfileBundle, ProfileUpdate
 from app.services.cache import get_cached_profile, invalidate_profile, set_cached_profile
+from app.services.media_validation import (
+    validate_flyer_public_id,
+    validate_hosted_media_url,
+    validate_social_url,
+)
 from app.services.profile_service import (
     ensure_customization,
     get_profile_by_username,
@@ -25,6 +30,12 @@ def update_my_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     data = payload.model_dump(exclude_unset=True)
+    if "avatar_url" in data and data["avatar_url"]:
+        data["avatar_url"] = validate_hosted_media_url(data["avatar_url"], field="avatar_url")
+    if "linkedin_url" in data:
+        data["linkedin_url"] = validate_social_url(data["linkedin_url"], "linkedin")
+    if "github_url" in data:
+        data["github_url"] = validate_social_url(data["github_url"], "github")
     for key, value in data.items():
         setattr(profile, key, value)
     db.commit()
@@ -78,6 +89,14 @@ def update_my_customization(
                 status_code=400,
                 detail=f"Fuente no permitida. Usá una de: {', '.join(allowed)}",
             )
+    if data.get("bg_image_url"):
+        data["bg_image_url"] = validate_hosted_media_url(
+            data["bg_image_url"], field="bg_image_url"
+        )
+    if data.get("flyer_url"):
+        data["flyer_url"] = validate_hosted_media_url(data["flyer_url"], field="flyer_url")
+    if "flyer_public_id" in data:
+        data["flyer_public_id"] = validate_flyer_public_id(user, data["flyer_public_id"])
     for key, value in data.items():
         setattr(settings, key, value)
     db.commit()

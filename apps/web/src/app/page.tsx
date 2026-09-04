@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useLocale } from "@/components/providers/locale-provider";
 import { apiClient } from "@/lib/api";
@@ -12,6 +13,7 @@ import { FotologLayout } from "@/components/fotolog/FotologLayout";
 export default function HomePage() {
   const { user, accessToken, loading } = useAuth();
   const { t } = useLocale();
+  const router = useRouter();
   const [profile, setProfile] = useState<ProfileBundle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +24,7 @@ export default function HomePage() {
       .then((data) => {
         if (cancelled) return;
         if (!data.onboarding_completed) {
-          window.location.href = "/onboarding";
+          router.push("/onboarding");
           return;
         }
         setProfile({ ...data, is_owner: true });
@@ -36,7 +38,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [user, accessToken]);
+  }, [user, accessToken, router]);
 
   if (loading) {
     return <p className="p-8 text-[#1a1025]/50">Cargando…</p>;
@@ -49,7 +51,9 @@ export default function HomePage() {
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
         <Link
           href="/settings/customizer"
           className="mt-4 inline-block text-sm text-[#6d28d9] underline-offset-4 hover:underline"

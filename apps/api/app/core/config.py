@@ -1,4 +1,6 @@
+import os
 from functools import lru_cache
+from urllib.parse import urlparse
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +39,7 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
     cloudinary_folder: str = "skillz"
+    seed_demo_user: bool = False
 
     allowed_fonts: list[str] = [
         "Space Grotesk",
@@ -66,10 +69,39 @@ class Settings(BaseSettings):
         secret = self.jwt_secret.strip()
         return secret in INSECURE_JWT_SECRETS or len(secret) < 32
 
+    @property
+    def looks_deployed(self) -> bool:
+        if self.is_production:
+            return True
+        if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PUBLIC_DOMAIN"):
+            return True
+        db = self.database_url.lower()
+        if "postgres" in db:
+            if "localhost" not in db and "127.0.0.1" not in db:
+                return True
+        for origin in self.cors_origin_list:
+            host = urlparse(origin).hostname or ""
+            if origin.startswith("https://") and host not in {"localhost", "127.0.0.1"}:
+                return True
+        return False
+
+    @property
+    def is_local_api(self) -> bool:
+        host = (urlparse(self.api_public_url).hostname or "").lower()
+        return host in {"localhost", "127.0.0.1"}
+
+    def can_seed_demo(self) -> bool:
+        return (
+            self.seed_demo_user
+            and not self.is_production
+            and not self.looks_deployed
+            and self.is_local_api
+        )
+
     def validate_security(self) -> None:
-        if self.is_production and self.has_insecure_jwt_secret:
+        if self.has_insecure_jwt_secret and (self.is_production or self.looks_deployed):
             raise RuntimeError(
-                "JWT_SECRET inseguro en production: usá un secreto aleatorio de al menos 32 caracteres."
+                "JWT_SECRET inseguro en un entorno desplegado: usá un secreto aleatorio de al menos 32 caracteres."
             )
 
 

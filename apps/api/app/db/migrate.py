@@ -27,7 +27,9 @@ def run_migrations() -> None:
     tables = set(inspector.get_table_names())
 
     if "users" in tables and "alembic_version" not in tables:
-        command.stamp(cfg, INITIAL_REVISION)
+        # Legacy DBs created with create_all already match current schema.
+        head = ScriptDirectory.from_config(cfg).get_current_head()
+        command.stamp(cfg, head or INITIAL_REVISION)
 
     with session_module.engine.connect() as conn:
         current = MigrationContext.configure(conn).get_current_revision()

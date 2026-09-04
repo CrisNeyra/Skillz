@@ -1,14 +1,13 @@
 "use client";
 
 type Props = {
-  displayName: string;
   specialty: string | null;
   meta: string | null;
 };
 
-/** Barra: nombre, especialidad y meta (ubicación / edad si existe). */
-export function ProfileInfoBar({ displayName, specialty, meta }: Props) {
-  const parts = [displayName, specialty, meta].filter(
+/** Barra: especialidad y ubicación (el nombre va en el h1). */
+export function ProfileInfoBar({ specialty, meta }: Props) {
+  const parts = [specialty, meta].filter(
     (part): part is string => Boolean(part && part.trim()),
   );
 

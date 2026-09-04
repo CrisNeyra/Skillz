@@ -96,8 +96,6 @@ def get_profile_by_username(db: Session, username: str) -> Profile | None:
             joinedload(Profile.diplomas),
             joinedload(Profile.experiences),
             joinedload(Profile.links),
-            joinedload(Profile.comments).joinedload(Comment.author),
-            joinedload(Profile.comments).joinedload(Comment.likes),
             joinedload(Profile.user),
         )
         .filter(Profile.user_id == user.id)
@@ -127,6 +125,21 @@ def serialize_profile(
         profile_id=profile.id, font_family="Space Grotesk", bg_color="#ffffff"
     )
     viewer_id = viewer.id if viewer else None
+    comment_rows: list[Comment] = []
+    next_cursor = None
+    if db is not None:
+        q = (
+            db.query(Comment)
+            .options(joinedload(Comment.author), joinedload(Comment.likes))
+            .filter(Comment.profile_id == profile.id)
+            .order_by(Comment.id.desc())
+            .limit(comments_limit + 1)
+        )
+        comment_rows = q.all()
+        if len(comment_rows) > comments_limit:
+            next_cursor = comment_rows[comments_limit - 1].id
+            comment_rows = comment_rows[:comments_limit]
+    comments = [comment_to_out(c, viewer_id) for c in comment_rows]
     skills = [
         SkillOut(
             id=ps.id,
@@ -138,12 +151,6 @@ def serialize_profile(
         )
         for ps in profile.skills
     ]
-    sorted_comments = sorted(
-        profile.comments, key=lambda x: x.created_at or datetime.utcnow(), reverse=True
-    )
-    page = sorted_comments[:comments_limit]
-    next_cursor = page[-1].id if len(sorted_comments) > comments_limit else None
-    comments = [comment_to_out(c, viewer_id) for c in page]
 
     follower_count = 0
     following_count = 0

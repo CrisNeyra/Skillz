@@ -7,6 +7,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { apiClient } from "@/lib/api";
 import { uploadMediaSlot } from "@/lib/upload";
 import type { MediaOut } from "@/types/api";
+import { ProfileMedia } from "@/components/media/ProfileMedia";
 
 type UploadableProps = {
   canUpload?: boolean;
@@ -87,14 +88,18 @@ export function TopBanner({
   const { getAccessToken } = useAuth();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onPick = async (file: File | null) => {
     if (!file) return;
     setBusy(true);
+    setError(null);
     try {
       const token = await getAccessToken();
       await uploadMediaSlot(token, "flyer", file, getAccessToken);
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo subir el flyer");
     } finally {
       setBusy(false);
     }
@@ -117,8 +122,7 @@ export function TopBanner({
           }}
         >
           {flyerUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={flyerUrl} alt="Banner del perfil" className="h-full w-full object-cover" />
+            <ProfileMedia src={flyerUrl} alt="Banner del perfil" className="object-cover" sizes="(max-width: 768px) 100vw, 576px" />
           ) : (
             <div
               className="flex h-full items-center justify-center text-[11px] uppercase tracking-[0.18em] md:text-xs"
@@ -145,6 +149,11 @@ export function TopBanner({
                 onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
               />
             </>
+          ) : null}
+          {error ? (
+            <p className="absolute bottom-2 left-2 max-w-[70%] text-[10px] text-red-200" role="alert">
+              {error}
+            </p>
           ) : null}
         </div>
       </div>
@@ -221,8 +230,7 @@ function MediaThumb({
           {media.media_type === "video" ? (
             <video src={media.url} className="h-full w-full object-cover" muted playsInline />
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={media.url} alt={media.caption ?? label} className="h-full w-full object-cover" />
+            <ProfileMedia src={media.url} alt={media.caption ?? label} className="object-cover" sizes="200px" />
           )}
           <MediaLikeButton media={media} />
           {canUpload && slot ? (
@@ -342,12 +350,7 @@ export function MainHeroMedia({
         media.media_type === "video" ? (
           <video src={media.url} className="h-full w-full object-cover" controls playsInline />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={media.url}
-            alt={media.caption ?? "Hero"}
-            className="h-full w-full object-cover"
-          />
+          <ProfileMedia src={media.url} alt={media.caption ?? "Hero"} className="object-cover" sizes="(max-width: 1024px) 100vw, 40vw" />
         )
       ) : canUpload ? (
         <SlotUploadOverlay

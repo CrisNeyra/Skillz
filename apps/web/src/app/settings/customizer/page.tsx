@@ -27,7 +27,7 @@ export default function CustomizerPage() {
   if (loading || (!data && !error)) {
     return <p className="p-8 text-[#1a1025]/50">Cargando customizer…</p>;
   }
-  if (error) return <p className="p-8 text-red-600">{error}</p>;
+  if (error) return <p className="p-8 text-red-600" role="alert">{error}</p>;
   if (!data) return null;
   return <CustomizerPanel initial={data} />;
 }

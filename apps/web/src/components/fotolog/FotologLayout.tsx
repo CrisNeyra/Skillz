@@ -84,7 +84,6 @@ export function FotologLayout({ data }: { data: ProfileBundle }) {
 
         <div className="mb-4">
           <ProfileInfoBar
-            displayName={profile.display_name}
             specialty={profile.headline}
             meta={profile.location}
           />

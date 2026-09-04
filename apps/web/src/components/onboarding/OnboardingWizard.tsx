@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useLocale } from "@/components/providers/locale-provider";
 import { apiClient } from "@/lib/api";
 import { uploadMediaSlot } from "@/lib/upload";
 import type { ProfileCoach } from "@/types/api";
@@ -11,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function OnboardingWizard() {
-  const { getAccessToken, user } = useAuth();
+  const { getAccessToken, user, loading } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [headline, setHeadline] = useState("");
@@ -24,17 +26,26 @@ export function OnboardingWizard() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
     const boot = async () => {
       try {
         const token = await getAccessToken();
         const c = await apiClient<ProfileCoach>("/ai/profile-coach", { token });
         setCoach(c);
-      } catch {
-        /* guest */
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "No se pudo cargar el coach");
       }
     };
     void boot();
-  }, [getAccessToken]);
+  }, [getAccessToken, loading, router, user]);
+
+  if (loading || !user) {
+    return <p className="p-6 text-sm text-[#1a1025]/60">{loading ? t.loading : t.onboardingLogin}</p>;
+  }
 
   const uploadFlyer = async (file: File | null) => {
     if (!file) return;
@@ -227,7 +238,11 @@ export function OnboardingWizard() {
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

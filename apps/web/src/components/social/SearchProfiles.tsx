@@ -3,15 +3,19 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useLocale } from "@/components/providers/locale-provider";
 import { apiClient } from "@/lib/api";
 import type { UserCard } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function SearchProfiles() {
   const { accessToken } = useAuth();
+  const { t } = useLocale();
   const [q, setQ] = useState("");
   const [items, setItems] = useState<UserCard[]>([]);
+  const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -26,8 +30,9 @@ export function SearchProfiles() {
         { token: accessToken },
       );
       setItems(data.items);
+      setSearched(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error de búsqueda");
+      setError(err instanceof Error ? err.message : t.searchError);
     } finally {
       setPending(false);
     }
@@ -39,24 +44,38 @@ export function SearchProfiles() {
         className="text-2xl font-semibold text-[#1a1025]"
         style={{ fontFamily: "var(--font-skillz-display), sans-serif" }}
       >
-        Buscar talento
+        {t.searchTitle}
       </h1>
       <form onSubmit={onSubmit} className="flex gap-2">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Nombre, usuario, headline…"
-          className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
-        />
+        <div className="flex-1 space-y-1">
+          <Label htmlFor="search-q" className="sr-only">
+            {t.searchLabel}
+          </Label>
+          <Input
+            id="search-q"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t.searchPlaceholder}
+            aria-label={t.searchLabel}
+            className="border-[#6d28d9]/25 bg-[#faf5ff] text-[#1a1025]"
+          />
+        </div>
         <Button
           type="submit"
           disabled={pending}
           className="bg-[#6d28d9] text-white hover:bg-[#5b21b6]"
         >
-          Buscar
+          {t.searchButton}
         </Button>
       </form>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {searched && items.length === 0 && !error ? (
+        <p className="text-sm text-[#1a1025]/55">{t.searchEmpty}</p>
+      ) : null}
       <ul className="space-y-2">
         {items.map((u) => (
           <li key={u.id}>

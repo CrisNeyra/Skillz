@@ -1,6 +1,7 @@
 from datetime import datetime
+import re
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 # ---- Auth ----
@@ -9,6 +10,13 @@ class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")
     password: str = Field(min_length=8, max_length=128)
     display_name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("password")
+    @classmethod
+    def password_complexity(cls, value: str) -> str:
+        if not re.search(r"[A-Za-z]", value) or not re.search(r"\d", value):
+            raise ValueError("La contraseña debe incluir al menos una letra y un número")
+        return value
 
 
 class LoginRequest(BaseModel):
@@ -55,20 +63,20 @@ class UserOut(BaseModel):
 class ProfileUpdate(BaseModel):
     display_name: str | None = Field(default=None, max_length=120)
     headline: str | None = Field(default=None, max_length=200)
-    bio: str | None = None
-    avatar_url: str | None = None
+    bio: str | None = Field(default=None, max_length=4000)
+    avatar_url: str | None = Field(default=None, max_length=500)
     location: str | None = Field(default=None, max_length=120)
-    linkedin_url: str | None = None
-    github_url: str | None = None
+    linkedin_url: str | None = Field(default=None, max_length=500)
+    github_url: str | None = Field(default=None, max_length=500)
     contact_email: str | None = None
 
 
 class CustomizationUpdate(BaseModel):
     bg_color: str | None = Field(default=None, pattern=r"^#[0-9A-Fa-f]{6}$")
-    bg_image_url: str | None = None
+    bg_image_url: str | None = Field(default=None, max_length=500)
     font_family: str | None = None
-    flyer_url: str | None = None
-    flyer_public_id: str | None = None
+    flyer_url: str | None = Field(default=None, max_length=500)
+    flyer_public_id: str | None = Field(default=None, max_length=255)
 
 
 class CustomizationOut(BaseModel):
@@ -124,10 +132,10 @@ class SkillCreate(BaseModel):
 
 class DiplomaIn(BaseModel):
     title: str = Field(min_length=1, max_length=200)
-    issuer: str | None = None
+    issuer: str | None = Field(default=None, max_length=200)
     issued_at: datetime | None = None
-    credential_url: str | None = None
-    media_url: str | None = None
+    credential_url: str | None = Field(default=None, max_length=500)
+    media_url: str | None = Field(default=None, max_length=500)
 
 
 class DiplomaOut(DiplomaIn):
@@ -141,7 +149,7 @@ class ExperienceIn(BaseModel):
     role: str = Field(min_length=1, max_length=160)
     start_date: datetime | None = None
     end_date: datetime | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
 
 
 class ExperienceOut(ExperienceIn):
@@ -152,8 +160,18 @@ class ExperienceOut(ExperienceIn):
 
 class LinkIn(BaseModel):
     label: str = Field(min_length=1, max_length=80)
-    url: str
+    url: str = Field(min_length=8, max_length=500)
     sort_order: int = 0
+
+    @field_validator("url")
+    @classmethod
+    def http_url(cls, value: str) -> str:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(value.strip())
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("URL inválida")
+        return value.strip()
 
 
 class LinkOut(LinkIn):

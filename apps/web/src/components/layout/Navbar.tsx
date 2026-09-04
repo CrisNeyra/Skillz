@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SkillzLogo } from "@/components/brand/SkillzLogo";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -12,6 +13,8 @@ import { cn } from "@/lib/utils";
 export function Navbar() {
   const { user, logout, loading, accessToken } = useAuth();
   const { t } = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export function Navbar() {
                   "hidden text-[#1a1025] hover:bg-[#6d28d9]/10 sm:inline-flex",
                 )}
               >
-                Feed
+                {t.navFeed}
               </Link>
               <Link
                 href="/search"
@@ -62,7 +65,7 @@ export function Navbar() {
                   "text-[#1a1025] hover:bg-[#6d28d9]/10",
                 )}
               >
-                Buscar
+                {t.navSearch}
               </Link>
               <Link
                 href="/notifications"
@@ -71,7 +74,7 @@ export function Navbar() {
                   "relative text-[#1a1025] hover:bg-[#6d28d9]/10",
                 )}
               >
-                Alertas
+                {t.navAlerts}
                 {unreadBadge > 0 ? (
                   <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#6d28d9] px-1 text-[10px] text-white">
                     {unreadBadge > 9 ? "9+" : unreadBadge}
@@ -99,7 +102,15 @@ export function Navbar() {
               <Button
                 variant="outline"
                 className="border-[#6d28d9]/25 bg-transparent text-[#1a1025] hover:bg-[#6d28d9]/10"
-                onClick={() => void logout()}
+                onClick={() => {
+                  void (async () => {
+                    await logout();
+                    const privatePaths = ["/feed", "/notifications", "/settings/customizer", "/onboarding"];
+                    if (privatePaths.includes(pathname) || pathname.startsWith("/settings")) {
+                      router.push("/");
+                    }
+                  })();
+                }}
               >
                 {t.navLogout}
               </Button>

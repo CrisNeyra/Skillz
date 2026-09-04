@@ -27,6 +27,33 @@ export type Dictionary = {
   navProfile: string;
   navCustomize: string;
   navLogout: string;
+  navFeed: string;
+  navSearch: string;
+  navAlerts: string;
+  loading: string;
+  loadMore: string;
+  feedTitle: string;
+  feedSubtitle: string;
+  feedEmpty: string;
+  feedEmptyCta: string;
+  feedLoginCta: string;
+  feedError: string;
+  notifTitle: string;
+  notifEmpty: string;
+  notifMark: string;
+  notifLogin: string;
+  notifError: string;
+  notifLoading: string;
+  searchTitle: string;
+  searchPlaceholder: string;
+  searchButton: string;
+  searchEmpty: string;
+  searchLabel: string;
+  searchError: string;
+  onboardingLogin: string;
+  showPassword: string;
+  hidePassword: string;
+  noComments: string;
   landingTagline: string;
   loginTitle: string;
   loginSubtitle: string;
@@ -84,6 +111,33 @@ const es: Dictionary = {
   navProfile: "Mi perfil",
   navCustomize: "Personalizar",
   navLogout: "Salir",
+  navFeed: "Feed",
+  navSearch: "Buscar",
+  navAlerts: "Alertas",
+  loading: "Cargando…",
+  loadMore: "Cargar más",
+  feedTitle: "Feed",
+  feedSubtitle: "Actividad de quienes seguís.",
+  feedEmpty: "Todavía no hay actividad.",
+  feedEmptyCta: "Buscar gente para seguir",
+  feedLoginCta: "Iniciá sesión para ver el feed de quienes seguís.",
+  feedError: "No se pudo cargar el feed",
+  notifTitle: "Notificaciones",
+  notifEmpty: "Sin notificaciones todavía. Completá tu perfil y seguí gente para empezar.",
+  notifMark: "Marcar leídas",
+  notifLogin: "Iniciá sesión para ver tus alertas.",
+  notifError: "No se pudieron cargar las notificaciones",
+  notifLoading: "Cargando notificaciones…",
+  searchTitle: "Buscar talento",
+  searchPlaceholder: "Nombre, usuario, headline…",
+  searchButton: "Buscar",
+  searchEmpty: "No hay resultados para esa búsqueda.",
+  searchLabel: "Buscar perfiles",
+  searchError: "Error de búsqueda",
+  onboardingLogin: "Iniciá sesión para completar el onboarding.",
+  showPassword: "Mostrar contraseña",
+  hidePassword: "Ocultar contraseña",
+  noComments: "Sin comentarios todavía.",
   landingTagline: "Tu lugar para tus Skillz, Oportunidades para quedarse.",
   loginTitle: "Iniciar sesión",
   loginSubtitle: "Entrá con tu email o usuario y contraseña.",
@@ -101,7 +155,7 @@ const es: Dictionary = {
   registerDisplayName: "Nombre visible",
   registerUsername: "Usuario",
   registerEmail: "Email",
-  registerPassword: "Contraseña (mín. 8)",
+  registerPassword: "Contraseña (mín. 8, letra y número)",
   registerSubmit: "Crear cuenta",
   registerPending: "Creando…",
   registerHasAccount: "¿Ya tenés cuenta?",
@@ -142,6 +196,33 @@ const en: Dictionary = {
   navProfile: "My profile",
   navCustomize: "Customize",
   navLogout: "Log out",
+  navFeed: "Feed",
+  navSearch: "Search",
+  navAlerts: "Alerts",
+  loading: "Loading…",
+  loadMore: "Load more",
+  feedTitle: "Feed",
+  feedSubtitle: "Activity from people you follow.",
+  feedEmpty: "No activity yet.",
+  feedEmptyCta: "Find people to follow",
+  feedLoginCta: "Sign in to see the feed from people you follow.",
+  feedError: "Could not load the feed",
+  notifTitle: "Notifications",
+  notifEmpty: "No notifications yet. Complete your profile and follow people to get started.",
+  notifMark: "Mark as read",
+  notifLogin: "Sign in to see your alerts.",
+  notifError: "Could not load notifications",
+  notifLoading: "Loading notifications…",
+  searchTitle: "Search talent",
+  searchPlaceholder: "Name, username, headline…",
+  searchButton: "Search",
+  searchEmpty: "No results for that search.",
+  searchLabel: "Search profiles",
+  searchError: "Search failed",
+  onboardingLogin: "Sign in to complete onboarding.",
+  showPassword: "Show password",
+  hidePassword: "Hide password",
+  noComments: "No comments yet.",
   landingTagline: "Your place for your Skillz. Opportunities that stick.",
   loginTitle: "Log in",
   loginSubtitle: "Sign in with your email or username and password.",
@@ -158,7 +239,7 @@ const en: Dictionary = {
   registerDisplayName: "Display name",
   registerUsername: "Username",
   registerEmail: "Email",
-  registerPassword: "Password (min. 8)",
+  registerPassword: "Password (min. 8, letter and number)",
   registerSubmit: "Create account",
   registerPending: "Creating…",
   registerHasAccount: "Already have an account?",
@@ -261,6 +342,7 @@ const DICTS: Record<Locale, Dictionary> = {
 };
 
 const STORAGE_KEY = "skillz_locale";
+const COOKIE_KEY = "skillz_locale";
 
 type LocaleContextValue = {
   locale: Locale;
@@ -270,22 +352,25 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("es");
+export function LocaleProvider({
+  children,
+  initialLocale = "es",
+}: {
+  children: ReactNode;
+  initialLocale?: Locale;
+}) {
+  const [locale, setLocaleState] = useState<Locale>(
+    initialLocale && DICTS[initialLocale] ? initialLocale : "es",
+  );
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
-    if (stored && DICTS[stored]) {
-      queueMicrotask(() => {
-        setLocaleState(stored);
-        document.documentElement.lang = stored;
-      });
-    }
-  }, []);
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
     localStorage.setItem(STORAGE_KEY, next);
+    document.cookie = `${COOKIE_KEY}=${next}; path=/; max-age=31536000; samesite=lax`;
     document.documentElement.lang = next;
   }, []);
 

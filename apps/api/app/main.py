@@ -108,7 +108,7 @@ async def lifespan(_app: FastAPI):
     run_migrations()
     ensure_upload_dir()
     seed_skills()
-    if not settings.is_production:
+    if settings.can_seed_demo():
         seed_demo_user()
     configure_cloudinary()
     yield

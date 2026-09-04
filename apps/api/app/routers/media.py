@@ -39,6 +39,34 @@ MIME_TO_EXT = {
 MAX_BYTES = 40 * 1024 * 1024
 
 
+def resolve_upload_path(filename: str) -> Path:
+    if not filename or Path(filename).name != filename:
+        raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
+    root = UPLOAD_ROOT.resolve()
+    path = (root / filename).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Ruta no permitida") from exc
+    return path
+
+
+def _sniff_media(raw: bytes, declared_type: str) -> None:
+    if len(raw) < 12:
+        raise HTTPException(status_code=400, detail="Archivo inválido")
+    head = raw[:16]
+    if declared_type == "image":
+        if head.startswith((b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"GIF87a", b"GIF89a")):
+            return
+        if head.startswith(b"RIFF") and raw[8:12] == b"WEBP":
+            return
+        raise HTTPException(status_code=400, detail="El contenido no es una imagen válida")
+    if declared_type == "video":
+        if b"ftyp" in raw[:64] or head.startswith(b"\x1aE\xdf\xa3"):
+            return
+        raise HTTPException(status_code=400, detail="El contenido no es un video válido")
+
+
 def _detect_media(file: UploadFile) -> tuple[str, str]:
     """Return (media_type, suffix) for png/jpg/webp/gif/mp4…"""
     suffix = Path(file.filename or "").suffix.lower()
@@ -152,6 +180,7 @@ async def upload_local(
     raw = await file.read()
     if len(raw) > MAX_BYTES:
         raise HTTPException(status_code=400, detail="Archivo demasiado grande (máx 40MB)")
+    _sniff_media(raw, media_type)
 
     ensure_upload_dir()
     public_id = f"local/{user.username}/{slot}/{uuid.uuid4().hex}{suffix}"
@@ -165,12 +194,14 @@ async def upload_local(
         customization.flyer_url = url
         customization.flyer_public_id = public_id
         db.commit()
+        invalidate_profile(user.username)
         return {"ok": True, "url": url, "slot": "flyer", "media_type": media_type}
 
     if slot == "bg":
         customization = ensure_customization(db, profile)
         customization.bg_image_url = url
         db.commit()
+        invalidate_profile(user.username)
         return {"ok": True, "url": url, "slot": "bg", "media_type": media_type}
 
     media = _upsert_media(
@@ -198,7 +229,7 @@ async def upload_local(
 
 @router.get("/media/files/{filename}")
 def serve_local_file(filename: str):
-    path = UPLOAD_ROOT / filename
+    path = resolve_upload_path(filename)
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     return FileResponse(path)
@@ -311,6 +342,7 @@ def delete_media(
         raise HTTPException(status_code=404, detail="Media no encontrado")
     media.is_active = False
     db.commit()
+    invalidate_profile(user.username)
     return {"ok": True}
 
 
@@ -342,7 +374,9 @@ def update_layout(
         )
         for p in prev:
             p.is_active = False
+            p.slot = f"archived_{p.id}"
         media.slot = slot
         media.is_active = True
     db.commit()
+    invalidate_profile(user.username)
     return {"ok": True}

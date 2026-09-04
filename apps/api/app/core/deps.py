@@ -49,4 +49,7 @@ def get_optional_user(
     user_id = payload.get("sub")
     if not user_id:
         return None
-    return db.get(User, int(user_id))
+    user = db.get(User, int(user_id))
+    if not user or not user.is_active:
+        return None
+    return user

@@ -26,12 +26,12 @@ function assertAllowedFile(slot: string, file: File) {
 
   if (slot === "flyer" || slot === "bg") {
     if (!isImage) {
-      throw new Error("El flyer solo acepta PNG o JPG.");
+      throw new Error("El flyer/fondo acepta PNG, JPG, WEBP o GIF.");
     }
     return;
   }
   if (!isImage && !isVideo) {
-    throw new Error("Formato no soportado. Usá PNG, JPG o MP4.");
+    throw new Error("Formato no soportado. Usá PNG, JPG, WEBP, GIF, MP4 o WEBM.");
   }
 }
 

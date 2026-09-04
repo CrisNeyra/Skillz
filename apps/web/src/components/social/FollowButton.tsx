@@ -20,6 +20,7 @@ export function FollowButton({
   const [following, setFollowing] = useState(initialFollowing);
   const [followers, setFollowers] = useState(initialFollowers);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!user || user.username === username) {
     return (
@@ -32,6 +33,7 @@ export function FollowButton({
   const toggle = async () => {
     if (!accessToken) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await apiClient<{
         following: boolean;
@@ -42,6 +44,8 @@ export function FollowButton({
       });
       setFollowing(res.following);
       setFollowers(res.follower_count);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo actualizar el follow");
     } finally {
       setBusy(false);
     }
@@ -65,6 +69,11 @@ export function FollowButton({
       <span className="text-xs" style={{ color: "var(--profile-faint)" }}>
         {followers} seguidores
       </span>
+      {error ? (
+        <span className="text-xs text-red-600" role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }
